@@ -2,7 +2,7 @@
 
 namespace App\Infrastructure\Repositories;
 
-use App\Domain\Order\Repository\KeyRepositoryInterface;
+use App\Domain\Supplier\Repository\KeyRepositoryInterface;
 use App\Infrastructure\Models\Key;
 use App\Infrastructure\Shared\AbstractRepository;
 use Illuminate\Database\Eloquent\Model;

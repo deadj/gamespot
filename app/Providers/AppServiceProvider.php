@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\Domain\Order\Repository\KeyRepositoryInterface;
+use App\Domain\Supplier\Repository\KeyRepositoryInterface;
 use App\Domain\Order\Repository\OrderRepositoryInterface;
 use App\Domain\Payment\Repository\PaymentLogRepositoryInterface;
 use App\Domain\Payment\Repository\PaymentRepositoryInterface;

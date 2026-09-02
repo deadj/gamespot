@@ -3,7 +3,7 @@
 namespace App\Application\Order\UseCase;
 
 use App\Domain\Order\Enum\OrderStatus;
-use App\Domain\Order\Repository\KeyRepositoryInterface;
+use App\Domain\Supplier\Repository\KeyRepositoryInterface;
 use App\Domain\Order\Repository\OrderRepositoryInterface;
 use App\Domain\Payment\Enum\PaymentStatus;
 use App\Domain\Supplier\DTO\SupplierClientRequestDTO;

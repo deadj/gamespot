@@ -7,6 +7,7 @@ use App\Domain\Order\Repository\OrderRepositoryInterface;
 use App\Infrastructure\Models\Order;
 use App\Infrastructure\Shared\AbstractRepository;
 use Illuminate\Database\Eloquent\Model;
+use OrderChangeStatusException;
 use Override;
 
 class OrderRepository extends AbstractRepository implements OrderRepositoryInterface
@@ -15,6 +16,10 @@ class OrderRepository extends AbstractRepository implements OrderRepositoryInter
     public function updateStatus(int $orderId, OrderStatus $status): Order
     {
         $order = $this->model->find($orderId);
+        
+        if (!$order->status->getChangePermission($status))
+            throw new OrderChangeStatusException($orderId, $order->status, $status);
+
         $order->update(['status' => $status]);
         return $order;
     }

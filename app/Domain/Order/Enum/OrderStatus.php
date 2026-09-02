@@ -11,4 +11,33 @@ enum OrderStatus: string
     case PaymentFailed = 'payment_failed';
     case OutOfStock = 'out_of_stock';
     case DeliveryFailed = 'delivery_failed';
+
+    public function getChangePermission(self $neededStatus): bool
+    {
+        return in_array($neededStatus, $this->getAllowedChanges());
+    }
+
+    private function getAllowedChanges(): array
+    {
+        return match ($this) {
+            self::Created => [
+                self::Paid, 
+                self::PaymentFailed,
+            ],
+            self::Paid => [
+                self::Delivering,
+            ],
+            self::Delivering => [
+                self::Delivered, 
+                self::OutOfStock, 
+                self::DeliveryFailed,
+            ],
+            self::OutOfStock, 
+            self::DeliveryFailed => [
+                self::Delivering,
+            ],
+            self::Delivered, 
+            self::PaymentFailed => [],
+        };
+    }    
 }

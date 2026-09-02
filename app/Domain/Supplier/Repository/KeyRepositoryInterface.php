@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Domain\Order\Repository;
+namespace App\Domain\Supplier\Repository;
 
 use App\Domain\Shared\Repository\CreateInterface;
 use App\Infrastructure\Models\Key;
