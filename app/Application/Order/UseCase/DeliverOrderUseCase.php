@@ -2,14 +2,13 @@
 
 namespace App\Application\Order\UseCase;
 
+use App\Application\Order\Service\SupplierHandler;
 use App\Domain\Order\Enum\OrderStatus;
 use App\Domain\Supplier\Repository\KeyRepositoryInterface;
 use App\Domain\Order\Repository\OrderRepositoryInterface;
 use App\Domain\Payment\Enum\PaymentStatus;
-use App\Domain\Supplier\DTO\SupplierClientRequestDTO;
 use App\Domain\Supplier\Enum\SupplierReason;
 use App\Domain\Supplier\Enum\SupplierStatus;
-use App\Domain\Supplier\Interface\SupplierInterface;
 use App\Infrastructure\Models\Order;
 
 class DeliverOrderUseCase
@@ -17,7 +16,7 @@ class DeliverOrderUseCase
     public function __construct(
         protected OrderRepositoryInterface $orderRepository,
         protected KeyRepositoryInterface $keyRepository,
-        protected SupplierInterface $supplierClient,
+        protected SupplierHandler $supplierHandler
     ) {}
 
     public function execute(Order $order, PaymentStatus $paymentStatus): Order
@@ -35,14 +34,11 @@ class DeliverOrderUseCase
             return $this->orderRepository->updateStatus($order->id, OrderStatus::Delivered);
 
         $order = $this->orderRepository->updateStatus($order->id, OrderStatus::Delivering);
-        
-        $requestId = "ord_{$order->id}-try1";
 
-        $supplierResponse = $this->supplierClient->getKey(new SupplierClientRequestDTO(
-            requestId: $requestId, 
-            sku: $order->sku, 
+        $supplierResponse = $this->supplierHandler->getResponse(
+            sku: $order->sku,
             orderPublicId: $order->public_id,
-        ));        
+        );
 
         if ($supplierResponse->status == SupplierStatus::Ok->value) {
             return $this->orderRepository->update($order->id, [

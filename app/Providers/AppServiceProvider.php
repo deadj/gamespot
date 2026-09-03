@@ -2,12 +2,12 @@
 
 namespace App\Providers;
 
+use App\Application\Order\Service\SupplierHandler;
 use App\Domain\Supplier\Repository\KeyRepositoryInterface;
 use App\Domain\Order\Repository\OrderRepositoryInterface;
 use App\Domain\Payment\Repository\PaymentLogRepositoryInterface;
 use App\Domain\Payment\Repository\PaymentRepositoryInterface;
 use App\Domain\Product\Repository\ProductRepositoryInterface;
-use App\Domain\Supplier\Interface\SupplierInterface;
 use App\Infrastructure\Repositories\KeyRepository;
 use App\Infrastructure\Repositories\OrderRepository;
 use App\Infrastructure\Repositories\PaymentLogRepository;
@@ -28,7 +28,23 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ProductRepositoryInterface::class, ProductRepository::class);
         $this->app->bind(PaymentRepositoryInterface::class, PaymentRepository::class);
         $this->app->bind(PaymentLogRepositoryInterface::class, PaymentLogRepository::class);
-        $this->app->bind(SupplierInterface::class, SupplierClient::class);
+
+        $this->app->singleton(SupplierHandler::class, function ($app) {
+            $keyRepository = $app->make(KeyRepositoryInterface::class);
+ 
+            return new SupplierHandler(
+                supplierA: new SupplierClient(
+                    $keyRepository,
+                    errorPercent: config('services.suppliers.a.error_percent'),
+                    timeoutPercent: config('services.suppliers.a.timeout_percent'),
+                ),
+                supplierB: new SupplierClient(
+                    $keyRepository,
+                    errorPercent: config('services.suppliers.b.error_percent'),
+                    timeoutPercent: config('services.suppliers.b.timeout_percent'),
+                ),
+            );
+        });        
     }
 
     /**

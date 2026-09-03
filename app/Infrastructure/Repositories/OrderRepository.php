@@ -3,11 +3,11 @@
 namespace App\Infrastructure\Repositories;
 
 use App\Domain\Order\Enum\OrderStatus;
+use App\Domain\Order\Exception\OrderChangeStatusException;
 use App\Domain\Order\Repository\OrderRepositoryInterface;
 use App\Infrastructure\Models\Order;
 use App\Infrastructure\Shared\AbstractRepository;
 use Illuminate\Database\Eloquent\Model;
-use OrderChangeStatusException;
 use Override;
 
 class OrderRepository extends AbstractRepository implements OrderRepositoryInterface

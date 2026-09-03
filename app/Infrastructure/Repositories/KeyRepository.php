@@ -11,11 +11,11 @@ use Override;
 class KeyRepository extends AbstractRepository implements KeyRepositoryInterface
 {
     #[Override]
-    public function markForOrder(string $sku, string $orderId): ?Key
+    public function markForOrder(string $sku, string $requestId): ?Key
     {
         $key = $this->model->where([
             ['sku', $sku],
-            ['order_id', null],
+            ['request_id', null],
         ])
         ->lock('FOR UPDATE SKIP LOCKED')
         ->first();
@@ -24,7 +24,7 @@ class KeyRepository extends AbstractRepository implements KeyRepositoryInterface
             return null;
 
         $key->update([
-            'order_id' => $orderId,
+            'request_id' => $requestId,
         ]);
 
         return $key;
@@ -37,9 +37,9 @@ class KeyRepository extends AbstractRepository implements KeyRepositoryInterface
     }
 
     #[Override]
-    public function getByOrderId(string $orderId): ?Key
+    public function getByRequestId(string $requestId): ?Key
     {
-        return $this->model->where('order_id', $orderId)->first();
+        return $this->model->where('request_id', $requestId)->first();
     }
 
     #[Override]

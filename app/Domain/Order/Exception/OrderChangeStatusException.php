@@ -1,6 +1,9 @@
 <?php
 
+namespace App\Domain\Order\Exception;
+
 use App\Domain\Order\Enum\OrderStatus;
+use Exception;
 
 class OrderChangeStatusException extends Exception
 {

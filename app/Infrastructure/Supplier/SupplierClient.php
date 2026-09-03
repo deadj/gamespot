@@ -2,12 +2,13 @@
 
 namespace App\Infrastructure\Supplier;
 
-use App\Domain\Order\Repository\KeyRepositoryInterface;
+use App\Domain\Supplier\Repository\KeyRepositoryInterface;
 use App\Domain\Supplier\DTO\SupplierClientRequestDTO;
 use App\Domain\Supplier\DTO\SupplierClientResponseDTO;
 use App\Domain\Supplier\Enum\SupplierReason;
 use App\Domain\Supplier\Enum\SupplierStatus;
 use App\Domain\Supplier\Interface\SupplierInterface;
+use Illuminate\Http\Client\ConnectionException;
 use Override;
 
 class SupplierClient implements SupplierInterface
@@ -21,39 +22,34 @@ class SupplierClient implements SupplierInterface
     #[Override]
     public function getKey(SupplierClientRequestDTO $dto): SupplierClientResponseDTO
     {
-
-        if (rand(0, 100) <= $this->timeoutPercent) 
+        if ($key = $this->keyRepository->getByRequestId($dto->requestId)) {
             return new SupplierClientResponseDTO(
-                status: SupplierStatus::Error->value,
-                reason: SupplierReason::Timeout->value,
+                status: SupplierStatus::Ok->value,
+                requestId: $dto->requestId,
+                code: $key->code,
             );
+        }
         
-        if (rand(0, 100) <= $this->errorPercent) 
+        if (rand(1, 100) <= $this->errorPercent) 
             return new SupplierClientResponseDTO(
                 status: SupplierStatus::Error->value,
                 reason: SupplierReason::Error->value,
             );
 
-        if ($key = $this->keyRepository->getByOrderId($dto->orderPublicId)) {
+        if ($key = $this->keyRepository->markForOrder($dto->sku, $dto->requestId)) {
             return new SupplierClientResponseDTO(
                 status: SupplierStatus::Ok->value,
                 requestId: $dto->requestId,
                 code: $key->code,
-            );
-        }        
-
-        if ($key = $this->keyRepository->markForOrder($dto->sku, $dto->orderPublicId)) {
-            return new SupplierClientResponseDTO(
-                status: SupplierStatus::Ok->value,
-                requestId: $dto->requestId,
-                code: $key->code,
-            );
-        } else {
-            return new SupplierClientResponseDTO(
-                status: SupplierStatus::Error->value,
-                reason: SupplierReason::OutOfStock->value
             );
         }
 
+        if (rand(1, 100) <= $this->timeoutPercent) 
+            throw new ConnectionException('Simulated supplier timeout');        
+
+        return new SupplierClientResponseDTO(
+            status: SupplierStatus::Error->value,
+            reason: SupplierReason::OutOfStock->value
+        );
     }
 }

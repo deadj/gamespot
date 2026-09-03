@@ -2,7 +2,7 @@
 
 namespace App\Domain\Supplier\DTO;
 
-readonly class SupplierClientRequestDTO
+class SupplierClientRequestDTO
 {
     public function __construct(
         public string $requestId,

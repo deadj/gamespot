@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    'suppliers' => [
+        'a' => [
+            'error_percent' => env('SUPPLIER_A_ERROR_PERCENT', 0),
+            'timeout_percent' => env('SUPPLIER_A_TIMEOUT_PERCENT', 0),            
+        ],
+        'b' => [
+            'error_percent' => env('SUPPLIER_B_ERROR_PERCENT', 0),
+            'timeout_percent' => env('SUPPLIER_B_TIMEOUT_PERCENT', 0),            
+        ],
+    ],
 ];

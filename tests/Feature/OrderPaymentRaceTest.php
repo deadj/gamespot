@@ -23,7 +23,7 @@ class OrderPaymentRaceTest extends TestCase
         $this->checkTestDB();
 
         DB::statement('TRUNCATE TABLE payment_logs, payments, orders RESTART IDENTITY CASCADE;');
-        Key::query()->update(['order_id' => null]);
+        Key::query()->update(['request_id' => null]);
     }    
 
     protected function checkTestDB(): void
@@ -64,7 +64,7 @@ class OrderPaymentRaceTest extends TestCase
             return $requests;
         });
 
-        foreach ($poolResponses as $key => $response) {
+        foreach ($poolResponses as $response) {
             $this->assertTrue($response->successful(), "HTTP {$response->status()}: " . $response->body());
         }
         
@@ -72,7 +72,7 @@ class OrderPaymentRaceTest extends TestCase
         
         $this->assertEquals(OrderStatus::Delivered, $order->status);
         $this->assertEquals(1, Order::count());
-        $this->assertEquals(1, Key::where('order_id', $publicOrderId)->count());
+        $this->assertEquals(1, Key::where('request_id', 'LIKE', "request_{$publicOrderId}_supplier_%")->count());
         $this->assertEquals(1, Payment::where('order_public_id', $publicOrderId)->count());
     }
 }

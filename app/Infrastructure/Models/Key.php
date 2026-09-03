@@ -9,6 +9,6 @@ class Key extends Model
     protected $fillable = [
         'sku',
         'code',
-        'order_id',
+        'request_id',
     ];
 }
