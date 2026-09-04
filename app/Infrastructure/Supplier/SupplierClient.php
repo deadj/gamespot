@@ -36,16 +36,18 @@ class SupplierClient implements SupplierInterface
                 reason: SupplierReason::Error->value,
             );
 
-        if ($key = $this->keyRepository->markForOrder($dto->sku, $dto->requestId)) {
+        $key = $this->keyRepository->markForOrder($dto->sku, $dto->requestId);
+
+        if (rand(1, 100) <= $this->timeoutPercent) 
+            throw new ConnectionException('Simulated supplier timeout');     
+
+        if ($key) {
             return new SupplierClientResponseDTO(
                 status: SupplierStatus::Ok->value,
                 requestId: $dto->requestId,
                 code: $key->code,
             );
         }
-
-        if (rand(1, 100) <= $this->timeoutPercent) 
-            throw new ConnectionException('Simulated supplier timeout');        
 
         return new SupplierClientResponseDTO(
             status: SupplierStatus::Error->value,

@@ -2,6 +2,7 @@
 
 namespace App\Application\Order\Service;
 
+use App\Domain\Shared\LoggerInterface;
 use App\Domain\Supplier\DTO\SupplierClientRequestDTO;
 use App\Domain\Supplier\DTO\SupplierClientResponseDTO;
 use App\Domain\Supplier\Enum\SupplierReason;
@@ -17,23 +18,36 @@ class SupplierHandler
     public function __construct(
         protected SupplierInterface $supplierA,
         protected SupplierInterface $supplierB,
+        protected LoggerInterface $logger,
     ) {}    
 
     public function getResponse(string $sku, string $orderPublicId): SupplierClientResponseDTO
     {
-        $requestDTO = new SupplierClientRequestDTO(
+        $request = new SupplierClientRequestDTO(
             requestId: "request_{$orderPublicId}_supplier_A",
             sku: $sku,
             orderPublicId: $orderPublicId,
         );
 
-        $response = $this->makeRequest($this->supplierA, $requestDTO);
+        $response = $this->makeRequest($this->supplierA, $request);
 
-        if ($response->status == SupplierStatus::Ok->value || $response->reason == SupplierReason::AllTimeouts->value) 
+        if (
+            $response->status == SupplierStatus::Ok->value
+            || $response->reason == SupplierReason::AllTimeouts->value
+        ) {
+            $this->logSupplierResponse($request, $response, 'A');
             return $response;
-        
-        $requestDTO->requestId = "request_{$orderPublicId}_supplier_B";
-        $response = $this->makeRequest($this->supplierB, $requestDTO);
+        }
+
+        $this->logger->info('Supplier A fail. Supplier B start', [
+            'order_public_id' => $orderPublicId,
+            'provider_a_reason' => $response->reason,
+        ]);
+
+        $request->requestId = "request_{$orderPublicId}_supplier_B";
+        $response = $this->makeRequest($this->supplierB, $request);
+
+        $this->logSupplierResponse($request, $response, 'B');
 
         return $response;
     }
@@ -59,5 +73,28 @@ class SupplierHandler
                 reason: SupplierReason::AllTimeouts->value,
             );
         }  
+    }
+
+    protected function logSupplierResponse(
+        SupplierClientRequestDTO $request,
+        SupplierClientResponseDTO $response, 
+        string $supplier,
+    ): void
+    {
+        $logData = [
+            'order_public_id' => $request->orderPublicId,
+            'request_id' => $request->requestId,
+            'supplier' => $supplier,
+        ];
+
+
+        if ($response->status == SupplierStatus::Ok->value) {
+            $logData['code'] = $response->code;
+            $this->logger->info('Key received', $logData);
+            return;
+        }
+        
+        $logData['reason'] = $response->reason;
+        $this->logger->error("All suppliers failed", $logData);
     }
 }

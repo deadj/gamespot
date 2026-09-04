@@ -4,6 +4,7 @@ namespace App\Infrastructure\Models;
 
 use App\Domain\Payment\Enum\PaymentStatus;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Payment extends Model
 {
@@ -20,4 +21,9 @@ class Payment extends Model
         'status' => PaymentStatus::class,
         'event_created_at' => 'datetime',
     ];
+
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class, 'order_public_id', 'public_id');
+    }
 }
