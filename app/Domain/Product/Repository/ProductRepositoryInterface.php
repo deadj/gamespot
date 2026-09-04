@@ -9,4 +9,5 @@ interface ProductRepositoryInterface
 {
     public function getAll(): Collection;
     public function getBySku(string $sku): ?Product;   
+    public function getStock(): Collection;
 }

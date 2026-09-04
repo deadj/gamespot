@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('products')->name('products')->group(function () {
     Route::get('', [ProductController::class, 'getAll'])->name('.get.all');
+    Route::get('stock', [ProductController::class, 'getStock'])->name('.get.stock');
     Route::get('{sku}', [ProductController::class, 'getBySku'])->name('.get.sku');
 });
 
