@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gamespot
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: gamespot
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gamespot -d gamespot"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_DATABASE: gamespot
+      DB_USERNAME: gamespot
+      DB_PASSWORD: secret
+    volumes:
+      - .:/app
+      - /app/vendor
+    command: >
+      sh -c "mkdir -p tests/Unit && cp -n .env.example .env && composer install --no-interaction && php artisan key:generate --force && php artisan migrate:fresh --force && php artisan db:seed --class=ProductSeeder --force && php artisan db:seed --class=KeysThousandsSeeder --force && php artisan serve --host=0.0.0.0 --port=8000 & DB_DATABASE=gamespot_test php artisan migrate:fresh --force && DB_DATABASE=gamespot_test php artisan db:seed --class=ProductSeeder --force && DB_DATABASE=gamespot_test php artisan db:seed --class=KeysThousandsSeeder --force && DB_DATABASE=gamespot_test php artisan octane:start --host=0.0.0.0 --port=8001"
+
+volumes:
+  db_data:

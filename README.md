@@ -1,58 +1,107 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# GameSpot 
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## Реализованные этапы
+- Этап 1. Ядро API
+- Этап 2. Exactly-once под гонками
+- Этап 3. Устойчивые интеграции с ловушкой таймаута
+- Этап 4. Сверка, наблюдаемость, восстановление
+- Этап 5. Каталог под нагрузкой 
 
-## About Laravel
+## Стек
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- PHP 8.4
+- Laravel 13
+- PostgreSQL 16
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Старт с Docker
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+docker compose up -d --build
 
-## Learning Laravel
+Приложение будет доступно на `http://localhost:8000`
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Тестовые products и keys пишутся в БД автоматически
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Тесты
+### Тест гонок
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+docker compose exec -e DB_DATABASE=gamespot_test app php artisan test --filter=OrderPaymentRaceTest
 
-## Agentic Development
+При запуске docker compose up -d --build автоматически запускается Octane для теста параллельности
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### Fallback
 
-```bash
-composer require laravel/boost --dev
+Процент ошибок и таймаутов изменяется в .env
 
-php artisan boost:install
-```
+`SUPPLIER_A_ERROR_PERCENT`
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+`SUPPLIER_A_TIMEOUT_PERCENT`
 
-## Contributing
+`SUPPLIER_B_ERROR_PERCENT`
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+`SUPPLIER_B_TIMEOUT_PERCENT`
 
-## Code of Conduct
+## Доведение зависших заказов
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+docker compose exec app php artisan app:order-delivery-repair
 
-## Security Vulnerabilities
+## API
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Товары
+- `GET /api/products` - все товары
+- `GET /api/products/stock` - остаток
+- `GET /api/products/{sku}` - товар по SKU
 
-## License
+### Заказы
+- `GET /api/orders/strange` - сверка (Возвращает заказы, где статус заказа и статус оплаты разошлись)
+- `GET /api/orders/{id}` - получить заказ
+- `POST /api/orders` - создать заказ
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### Оплата
+- `POST /api/webhooks/payment` - прием вебхука оплаты
+
+## Время реализации
+18 - 20 часов
+
+## Ключевые решения
+
+### Отказ вебхука оплаты с несуществующим orderId
+
+Post запрос содержит поле `"order_id" "ord_00123"`, являющееся публичных id, который создаётся по факту создания заказа. То есть в ситуации, когда приходит вебхук с несуществующим orderId, его обработка не представляется возможной. Возвращается статус код 404
+
+### Составной индекс (Этап 5) 
+
+Составной `sku, request_id` в keys выбран по той причине, что остаток считается по свободным ключам `WHERE sku = ? AND request_id IS NULL`. Индекс на эти два поля ускоряет подсчёт.  
+
+### Идемпотентность
+
+При резервировании ключей используется request_id = "request_{order_public_id}_supplier_{A|B}". Если ключ с таким request_id уже существует в БД — возвращается тот же код без повторного запроса к поставщику.
+
+### Защита от дублей payment webhook
+
+Payment webhook защищён от дублирования через уникальный индекс event_id в БД + проверка в БД + catch QueryException 
+
+### lockForUpdate 
+
+OrderRepository использует lockForUpdate(). Это блокирует строку заказа в БД до конца транзакции, при попытке одновременной обработки
+
+### Доведение зависших заказов
+
+OrderDeliveryRepairService находит заказы в статусах `Paid, Delivering, OutOfStock, DeliveryFailed` старше 10 минут и повторно вызывает их обработку
+
+### Журнал денежных движений
+Таблица money_moves хранит информацию о пришедших платежах и выданных ключах на их суммы
+
+### Логирование
+Логирование всех основных алгоритмов производится с помощью сервиса Logger в трёх вариантах info, warning, error
+
+## Масштабирование
+
+### Разбиение таблицы ключей
+В контексте ТЗ для ускорения выдачи ключей разбить таблицу keys (при большом количестве клюей) на таблицы по какому-либо признаку (sku, например). Но по факту таблица ключей принадлежит стороннему поставщику и это не представляется возможным
+
+### Фоновая обработка 
+Запросы к поставщикам вынести в очереди
+
+### Кэш
+Остатки кодов хранить в кэше
+
