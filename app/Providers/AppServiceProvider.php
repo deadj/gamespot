@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Application\Order\Service\SupplierHandler;
 use App\Domain\Money\Repository\MoneyMoveRepositoryInterface;
+use App\Domain\Order\Repository\OrderItemRepositoryInterface;
 use App\Domain\Supplier\Repository\KeyRepositoryInterface;
 use App\Domain\Order\Repository\OrderRepositoryInterface;
 use App\Domain\Payment\Repository\PaymentLogRepositoryInterface;
@@ -12,6 +13,7 @@ use App\Domain\Product\Repository\ProductRepositoryInterface;
 use App\Domain\Shared\LoggerInterface;
 use App\Infrastructure\Repositories\KeyRepository;
 use App\Infrastructure\Repositories\MoneyMoveRepository;
+use App\Infrastructure\Repositories\OrderItemRepository;
 use App\Infrastructure\Repositories\OrderRepository;
 use App\Infrastructure\Repositories\PaymentLogRepository;
 use App\Infrastructure\Repositories\PaymentRepository;
@@ -28,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(OrderRepositoryInterface::class, OrderRepository::class);
+        $this->app->bind(OrderItemRepositoryInterface::class, OrderItemRepository::class);
         $this->app->bind(KeyRepositoryInterface::class, KeyRepository::class);
         $this->app->bind(ProductRepositoryInterface::class, ProductRepository::class);
         $this->app->bind(PaymentRepositoryInterface::class, PaymentRepository::class);

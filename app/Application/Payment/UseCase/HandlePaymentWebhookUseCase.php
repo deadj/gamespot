@@ -9,15 +9,15 @@ use App\Domain\Money\DTO\MoneyMoveDTO;
 use App\Domain\Money\Enum\MoneyMoveType;
 use App\Domain\Order\Enum\OrderStatus;
 use App\Domain\Order\Exception\OrderNotFoundException;
+use App\Domain\Order\Exception\OrderPartiallyDeliveredException;
+use App\Domain\Order\Repository\OrderItemRepositoryInterface;
 use App\Domain\Order\Repository\OrderRepositoryInterface;
 use App\Domain\Payment\Enum\PaymentStatus;
 use App\Domain\Payment\Exception\PaymentAlreadyProcessedException;
-use App\Domain\Payment\Exception\PaymentAmountException;
 use App\Domain\Payment\Repository\PaymentLogRepositoryInterface;
 use App\Domain\Payment\Repository\PaymentRepositoryInterface;
 use App\Domain\Shared\LoggerInterface;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\DB;
 
 class HandlePaymentWebhookUseCase
 {
@@ -25,6 +25,7 @@ class HandlePaymentWebhookUseCase
         protected PaymentRepositoryInterface $paymentRepository,
         protected PaymentLogRepositoryInterface $paymentLogRepository,
         protected OrderRepositoryInterface $orderRepository,
+        protected OrderItemRepositoryInterface $orderItemRepository,
         protected DeliverOrderUseCase $deliverOrderUseCase,
         protected CreateMoneyMoveUseCase $createMoneyMoveUseCase,
         protected LoggerInterface $logger,
@@ -36,55 +37,76 @@ class HandlePaymentWebhookUseCase
         $this->paymentLogRepository->create($dto);
 
         try {
-            DB::transaction(function () use ($dto) {
-                if ($this->paymentRepository->getByEventId($dto->eventId)) {
-                    $this->logger->info("Payment already processed", ['event_id' => $dto->eventId]);
-                    throw new PaymentAlreadyProcessedException("payment {$dto->eventId} already processed");
-                }
+            if ($this->paymentRepository->getByEventId($dto->eventId)) {
+                $this->logger->info("Payment already processed", ['event_id' => $dto->eventId]);
+                throw new PaymentAlreadyProcessedException("payment {$dto->eventId} already processed");
+            }
 
-                $order = $this->orderRepository->getByPublicIdForUpdate($dto->orderPublicId);
+            $order = $this->orderRepository->getByPublicId($dto->orderPublicId);
 
-                if (!$order) {
-                    $this->logger->warning('Order not found', [
-                        'event_id' => $dto->eventId,
-                        'order_public_id' => $dto->orderPublicId,
-                    ]);
-                    throw new OrderNotFoundException("Order {$dto->orderPublicId} not found");
-                }
+            if (!$order) {
+                $this->logger->warning('Order not found', [
+                    'event_id' => $dto->eventId,
+                    'order_public_id' => $dto->orderPublicId,
+                ]);
+                throw new OrderNotFoundException("Order {$dto->orderPublicId} not found");
+            }
 
-                if ($order->status == OrderStatus::Paid) {
-                    $this->logger->info('Order already paid', ['order_public_id' => $dto->orderPublicId]);
-                    throw new PaymentAlreadyProcessedException("payment {$dto->eventId} already processed");
-                }
+            if ($order->status == OrderStatus::Paid) {
+                $this->logger->info('Order already paid', ['order_public_id' => $dto->orderPublicId]);
+                throw new PaymentAlreadyProcessedException("payment {$dto->eventId} already processed");
+            }
+            
+            // TODO: не очевидно, что делать в ситуации, когда у продуктов разная валюта
+            // if (
+            //     bccomp((string) $order->amount, (string) $dto->amount, 2) !== 0
+            //     || $order->currency !== $dto->currency
+            // ) {
+            //     $this->logger->error("Payment Amount/currency error", ['event_id' => $dto->eventId]);
+            //     throw new PaymentAmountException('Amount/currency error');
+            // }
 
-                if (
-                    bccomp((string) $order->amount, (string) $dto->amount, 2) !== 0
-                    || $order->currency !== $dto->currency
-                ) {
-                    $this->logger->error("Payment Amount/currency error", ['event_id' => $dto->eventId]);
-                    throw new PaymentAmountException('Amount/currency error');
-                }
+            if (in_array($order->status, [
+                OrderStatus::Delivered,
+                OrderStatus::PaymentFailed,
+                OrderStatus::PartiallyDelivered,
+            ])) {
+                $this->logger->info("Order already finished", [
+                    'event_id' => $dto->eventId,
+                    'order_public_id' => $dto->orderPublicId,
+                    'status' => $order->status->value,
+                ]);
+                return;                
+            }
+            
+            $payment = $this->paymentRepository->create($dto);
 
-                if ($order->status == OrderStatus::Delivered || $order->status == OrderStatus::PaymentFailed) {
-                    $this->logger->info("Order already finished", [
-                        'event_id' => $dto->eventId,
-                        'order_public_id' => $dto->orderPublicId,
-                        'status' => $order->status->value,
-                    ]);
-                    return;
-                }
+            if ($payment->status == PaymentStatus::Paid)
+                $this->createMoneyMoveUseCase->execute(new MoneyMoveDTO(
+                    orderId: $order->id,
+                    type: MoneyMoveType::Received,
+                    amount: $payment->amount
+                ));
 
-                $payment = $this->paymentRepository->create($dto);
+            $order = $this->deliverOrderUseCase->execute($order, $dto->status);
 
-                if ($payment->status == PaymentStatus::Paid)
-                    $this->createMoneyMoveUseCase->execute(new MoneyMoveDTO(
-                        orderId: $order->id,
-                        type: MoneyMoveType::Received,
-                        amount: $payment->amount
-                    ));
+            if ($order->status == OrderStatus::PartiallyDelivered) {
+                $notDelivetedItemPublicIds = $this->orderItemRepository
+                    ->getNotDelivetedByOrderId($order->id)
+                    ->pluck('public_id')
+                    ->toArray();
 
-                $this->deliverOrderUseCase->execute($order, $dto->status);
-            });
+                $notDelivetedItemPublicIdsText = implode(', ', $notDelivetedItemPublicIds);
+
+                $this->logger->warning('Order is partially delivered', [
+                    'order_public_id' => $order->public_id,
+                    'not_deliveted_items' => $notDelivetedItemPublicIds,
+                ]);
+
+                throw new OrderPartiallyDeliveredException(
+                    'Order is partially delivered. Not deliveted items: ' . $notDelivetedItemPublicIdsText
+                ); 
+            }            
         } catch (QueryException $e) {
             if ($e->getCode() == '23505' || str_contains($e->getMessage(), 'unique constraint')) {
                 $this->logger->info("Payment duplicate", ['event_id' => $dto->eventId]);

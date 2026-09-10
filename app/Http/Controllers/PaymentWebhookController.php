@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Application\Payment\DTO\PaymentDTO;
 use App\Application\Payment\UseCase\HandlePaymentWebhookUseCase;
 use App\Domain\Order\Exception\OrderNotFoundException;
+use App\Domain\Order\Exception\OrderPartiallyDeliveredException;
 use App\Domain\Payment\Enum\PaymentStatus;
 use App\Domain\Payment\Exception\PaymentAlreadyProcessedException;
 use App\Domain\Payment\Exception\PaymentAmountException;
@@ -33,6 +34,8 @@ class PaymentWebhookController extends Controller
 
             return response()->json([], 200);
         } catch (PaymentAlreadyProcessedException $e) {
+            return response()->json(['message' => $e->getMessage()], 200);
+        } catch (OrderPartiallyDeliveredException $e) {
             return response()->json(['message' => $e->getMessage()], 200);
         } catch (OrderNotFoundException $e) {
             return response()->json(['message' => $e->getMessage()], 404);

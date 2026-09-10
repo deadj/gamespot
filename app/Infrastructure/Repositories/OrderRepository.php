@@ -86,6 +86,12 @@ class OrderRepository extends AbstractRepository implements OrderRepositoryInter
     }
 
     #[Override]
+    public function getByPublicId(string $publicId): ?Order
+    {
+        return $this->model->where('public_id', $publicId)->first();
+    }    
+
+    #[Override]
     public function getByPublicIdForUpdate(string $publicId): ?Order
     {
         return $this->model

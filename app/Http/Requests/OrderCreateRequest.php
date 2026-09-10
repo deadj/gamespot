@@ -23,7 +23,7 @@ class OrderCreateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'sku' => ['required', 'string'],
+            'skus' => ['required', 'array'],
         ];
     }
 }

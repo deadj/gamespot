@@ -2,101 +2,79 @@
 
 namespace App\Application\Order\UseCase;
 
-use App\Application\Money\UseCase\CreateMoneyMoveUseCase;
-use App\Application\Order\Service\SupplierHandler;
-use App\Domain\Money\DTO\MoneyMoveDTO;
-use App\Domain\Money\Enum\MoneyMoveType;
 use App\Domain\Order\Enum\OrderStatus;
-use App\Domain\Supplier\Repository\KeyRepositoryInterface;
+use App\Domain\Order\Repository\OrderItemRepositoryInterface;
 use App\Domain\Order\Repository\OrderRepositoryInterface;
 use App\Domain\Payment\Enum\PaymentStatus;
 use App\Domain\Shared\LoggerInterface;
-use App\Domain\Supplier\Enum\SupplierReason;
-use App\Domain\Supplier\Enum\SupplierStatus;
 use App\Infrastructure\Models\Order;
 
 class DeliverOrderUseCase
 {
     public function __construct(
-        protected CreateMoneyMoveUseCase $createMoneyMoveUseCase,
+        protected DeliverOrderItemUseCase $deliverOrderItemUseCase,
         protected OrderRepositoryInterface $orderRepository,
-        protected KeyRepositoryInterface $keyRepository,
-        protected SupplierHandler $supplierHandler,
+        protected OrderItemRepositoryInterface $orderItemRepository,
         protected LoggerInterface $logger,
     ) {}
 
     public function execute(Order $order, PaymentStatus $paymentStatus): Order
     {
-        $oldOrderStatus = $order->status;
+        if (in_array($order->status, [
+            OrderStatus::Delivered,
+            OrderStatus::PartiallyDelivered,
+        ])) {
+            return $order; 
+        }    
+
+        $orderOldStatus = $order->status;
 
         if ($order->status == OrderStatus::Created && $paymentStatus == PaymentStatus::Paid) {
             $order = $this->orderRepository->updateStatus($order->id, OrderStatus::Paid);
-            $this->logStatusUpdate($order->public_id, $oldOrderStatus, OrderStatus::Paid);
-            $oldOrderStatus = $order->status;
-        } elseif ($order->status == OrderStatus::Created && $paymentStatus == PaymentStatus::Failed) {
-            $order = $this->orderRepository->updateStatus($order->id, OrderStatus::PaymentFailed);
-            $this->logStatusUpdate($order->public_id, $oldOrderStatus, OrderStatus::PaymentFailed);
-
-            return $order;
+            $this->logStatusUpdate($order->public_id, $orderOldStatus, OrderStatus::Paid);
+            $orderOldStatus = $order->status;
         } 
 
-        if ($order->code) {
-            $order = $this->orderRepository->updateStatus($order->id, OrderStatus::Delivered);
-            $this->logStatusUpdate($order->public_id, $oldOrderStatus, OrderStatus::Delivered);
-            
-            return $order;
-        }
-
-        if ($order->status !== OrderStatus::Delivering) {
+        if ($order->status != OrderStatus::Delivering) {
             $order = $this->orderRepository->updateStatus($order->id, OrderStatus::Delivering);
-            $this->logStatusUpdate($order->public_id, $oldOrderStatus, OrderStatus::Delivering);
-            $oldOrderStatus = $order->status;
+            $this->logStatusUpdate($order->public_id, $orderOldStatus, OrderStatus::Delivering);
         }
 
-        $supplierResponse = $this->supplierHandler->getResponse(
-            sku: $order->sku,
-            orderPublicId: $order->public_id,
-        );
-
-        if ($supplierResponse->status == SupplierStatus::Ok->value) {
-            $this->logger->info("Key received", [
-                'order_public_id' => $order->public_id,
-                'code' => $supplierResponse->code,
-            ]);
-
-            $order = $this->orderRepository->update($order->id, [
-                'status' => OrderStatus::Delivered,
-                'code' => $supplierResponse->code,
-            ]);
-
-            $this->logStatusUpdate($order->public_id, $oldOrderStatus, OrderStatus::Delivered);
-
-            $this->createMoneyMoveUseCase->execute(new MoneyMoveDTO(
-                orderId: $order->id,
-                type: MoneyMoveType::Issued,
-                amount: $order->amount,
-            ));
-
-            return $order;
+        foreach ($order->items as $item) {
+            $this->deliverOrderItemUseCase->execute($item->id, $paymentStatus);
         }
 
-        if ($supplierResponse->reason == SupplierReason::OutOfStock->value) {
-           $this->logger->warning('Out of stock', [
-                'order_public_id' => $order->public_id,
-                'sku' => $order->sku,
-            ]);
-            $order = $this->orderRepository->updateStatus($order->id, OrderStatus::OutOfStock);
-            $this->logStatusUpdate($order->public_id, $oldOrderStatus, OrderStatus::OutOfStock);
+        $order = $this->handleOrderUseCaseResult($order);
 
-            return $order;
+        return $order;
+    }
+
+    protected function handleOrderUseCaseResult(Order $order): Order
+    {
+        $order->refresh();
+            
+        $itemsCount = $order->items()->count();
+        $deliveredCount = 0;
+        $notDeliveredCount = 0;
+
+        foreach ($order->items as $item) {
+            if ($item->status == OrderStatus::Delivered) {
+                $deliveredCount++;
+            } else {
+                $notDeliveredCount++;
+            }            
         }
 
-        $order = $this->orderRepository->updateStatus($order->id, OrderStatus::DeliveryFailed);
-        $this->logger->error('Delivery failed', [
-            'order_public_id' => $order->public_id,
-            'reason' => $supplierResponse->reason,
-        ]);    
-        $this->logStatusUpdate($order->public_id, $oldOrderStatus, OrderStatus::DeliveryFailed);
+        if ($deliveredCount == $itemsCount) {
+            $resultOrderStatus = OrderStatus::Delivered;
+        } elseif ($deliveredCount > 0) {
+            $resultOrderStatus = OrderStatus::PartiallyDelivered;
+        } else {
+            $resultOrderStatus = OrderStatus::DeliveryFailed;
+        }
+
+        $order = $this->orderRepository->updateStatus($order->id, $resultOrderStatus);
+        $this->logStatusUpdate($order->public_id, OrderStatus::Delivering, $resultOrderStatus);
 
         return $order;
     }

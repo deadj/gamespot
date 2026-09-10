@@ -13,6 +13,7 @@ class MoneyMove extends Model
 {
     protected $fillable = [
         'order_id',
+        'order_item_id',
         'type',
         'amount',
     ];
@@ -24,5 +25,10 @@ class MoneyMove extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function orderItem(): BelongsTo
+    {
+        return $this->belongsTo(OrderItem::class);
     }
 }

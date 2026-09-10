@@ -16,12 +16,21 @@ class OrderResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $itemsData = [];
+
+        foreach ($this->items as $item) {
+            $itemsData[] = [
+                'sku' => $item->sku,
+                'public_id' => $item->public_id,
+                'amount' => $item->amount,
+                'currency' => $item->currency,
+            ];
+        }
+
         $data = [
             'id' => $this->id,
             'order_id' => $this->public_id,
-            'sku' => $this->sku,
-            'amount' => $this->amount,
-            'currency' => $this->currency,
+            'order_items' => $itemsData,
             'status' => $this->status->value,
             'status_delivery' => $this->getDeliveryStatus($this->status, $this->payment?->status),
         ];

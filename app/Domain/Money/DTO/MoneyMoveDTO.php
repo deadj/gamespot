@@ -11,5 +11,6 @@ class MoneyMoveDTO extends AbstractModelDTO
         public int $orderId,
         public MoneyMoveType $type,
         public float $amount,
+        public ?int $orderItemId = null,
     ) {}
 }

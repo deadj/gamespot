@@ -15,5 +15,6 @@ interface OrderRepositoryInterface extends CreateInterface
     public function getByStatuses(array $statuses): Collection;
     public function getById(int $orderId): ?Order;
     public function getByIdForUpdate(int $orderId): ?Order;
+    public function getByPublicId(string $publicId): ?Order;
     public function getByPublicIdForUpdate(string $publicId): ?Order;
 }

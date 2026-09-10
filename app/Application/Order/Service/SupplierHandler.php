@@ -21,12 +21,12 @@ class SupplierHandler
         protected LoggerInterface $logger,
     ) {}    
 
-    public function getResponse(string $sku, string $orderPublicId): SupplierClientResponseDTO
+    public function getResponse(string $sku, string $orderItemPublicId): SupplierClientResponseDTO
     {
         $request = new SupplierClientRequestDTO(
-            requestId: "request_{$orderPublicId}_supplier_A",
+            requestId: "request_{$orderItemPublicId}_supplier_A",
             sku: $sku,
-            orderPublicId: $orderPublicId,
+            orderItemPublicId: $orderItemPublicId,
         );
 
         $response = $this->makeRequest($this->supplierA, $request);
@@ -40,11 +40,11 @@ class SupplierHandler
         }
 
         $this->logger->info('Supplier A fail. Supplier B start', [
-            'order_public_id' => $orderPublicId,
+            'order_public_id' => $orderItemPublicId,
             'provider_a_reason' => $response->reason,
         ]);
 
-        $request->requestId = "request_{$orderPublicId}_supplier_B";
+        $request->requestId = "request_{$orderItemPublicId}_supplier_B";
         $response = $this->makeRequest($this->supplierB, $request);
 
         $this->logSupplierResponse($request, $response, 'B');
@@ -82,17 +82,10 @@ class SupplierHandler
     ): void
     {
         $logData = [
-            'order_public_id' => $request->orderPublicId,
+            'order_item_public_id' => $request->orderItemPublicId,
             'request_id' => $request->requestId,
             'supplier' => $supplier,
         ];
-
-
-        if ($response->status == SupplierStatus::Ok->value) {
-            $logData['code'] = $response->code;
-            $this->logger->info('Key received', $logData);
-            return;
-        }
         
         $logData['reason'] = $response->reason;
         $this->logger->error("All suppliers failed", $logData);

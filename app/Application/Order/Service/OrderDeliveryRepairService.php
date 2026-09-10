@@ -23,7 +23,7 @@ class OrderDeliveryRepairService
             OrderStatus::Paid,
             OrderStatus::Delivering,
             OrderStatus::OutOfStock,
-            OrderStatus::DeliveryFailed
+            OrderStatus::DeliveryFailed,
         ];
 
         $orderIds = $this->orderRepository->getByStatuses($neededStatuses)

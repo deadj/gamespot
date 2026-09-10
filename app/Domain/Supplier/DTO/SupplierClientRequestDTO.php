@@ -7,6 +7,6 @@ class SupplierClientRequestDTO
     public function __construct(
         public string $requestId,
         public string $sku,
-        public string $orderPublicId,
+        public string $orderItemPublicId,
     ) {}
 }

@@ -6,4 +6,6 @@ enum MoneyMoveType: string
 {
     case Received = 'received';
     case Issued = 'issued';
+    case Refund = 'refund';
+    case RefundCancelled = 'refund_cancelled';
 }

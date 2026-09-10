@@ -8,9 +8,11 @@ enum OrderStatus: string
     case Paid = 'paid';
     case Delivering = 'delivering';
     case Delivered = 'delivered';
+    case PartiallyDelivered = 'partially_delivered';
     case PaymentFailed = 'payment_failed';
     case OutOfStock = 'out_of_stock';
     case DeliveryFailed = 'delivery_failed';
+    case Refunded = 'refunded';
 
     public function getChangePermission(self $neededStatus): bool
     {
@@ -31,12 +33,18 @@ enum OrderStatus: string
                 self::Delivered, 
                 self::OutOfStock, 
                 self::DeliveryFailed,
+                self::PartiallyDelivered,
             ],
             self::OutOfStock, 
             self::DeliveryFailed => [
                 self::Delivering,
+                self::Refunded,
+                self::PartiallyDelivered,
             ],
             self::Delivered, 
+            self::PartiallyDelivered => [
+                self::Delivering,
+            ],
             self::PaymentFailed => [],
         };
     }    
