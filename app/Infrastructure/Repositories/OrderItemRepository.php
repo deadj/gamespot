@@ -14,31 +14,27 @@ use Override;
 class OrderItemRepository extends AbstractRepository implements OrderItemRepositoryInterface
 {
     #[Override]
-    public function updateStatus(int $itemId, OrderStatus $status): OrderItem
-    {
-        $order = $this->model->find($itemId);
-        
-        if (!$order->status->getChangePermission($status))
-            throw new OrderChangeStatusException($itemId, $order->status, $status);
+    public function updateStatus(OrderItem $item, OrderStatus $status): OrderItem
+    {        
+        if (!$item->status->getChangePermission($status))
+            throw new OrderChangeStatusException($item->id, $item->status, $status);
 
-        $order->update(['status' => $status]);
-        return $order;
+        $item->update(['status' => $status]);
+        return $item;
     }
 
     #[Override]
-    public function update(int $itemId, array $dataForUpdate): OrderItem
+    public function update(OrderItem $item, array $dataForUpdate): OrderItem
     {
-        $order = $this->model->find($itemId);
-
         if (
             array_key_exists('status', $dataForUpdate)
-            && !$order->status->getChangePermission($dataForUpdate['status'])
+            && !$item->status->getChangePermission($dataForUpdate['status'])
         ) {
-            throw new OrderChangeStatusException($itemId, $order->status, $dataForUpdate['status']);
+            throw new OrderChangeStatusException($item->id, $item->status, $dataForUpdate['status']);
         }
 
-        $order->update($dataForUpdate);
-        return $order;
+        $item->update($dataForUpdate);
+        return $item;
     }
 
     #[Override]
@@ -74,6 +70,12 @@ class OrderItemRepository extends AbstractRepository implements OrderItemReposit
             ['order_id', $orderId],
             ['status', '!=', OrderStatus::Delivered]
         ])->get();
+    }
+
+    #[Override]
+    public function getByCode(string $code): ?OrderItem
+    {
+        return $this->model->where('code', $code)->first();
     }
 
     protected function getModel(): Model

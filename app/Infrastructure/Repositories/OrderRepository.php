@@ -16,27 +16,23 @@ use Override;
 class OrderRepository extends AbstractRepository implements OrderRepositoryInterface
 {
     #[Override]
-    public function updateStatus(int $orderId, OrderStatus $status): Order
-    {
-        $order = $this->model->find($orderId);
-        
+    public function updateStatus(Order $order, OrderStatus $status): Order
+    {        
         if (!$order->status->getChangePermission($status))
-            throw new OrderChangeStatusException($orderId, $order->status, $status);
+            throw new OrderChangeStatusException($order->id, $order->status, $status);
 
         $order->update(['status' => $status]);
         return $order;
     }
 
     #[Override]
-    public function update(int $orderId, array $dataForUpdate): Order
+    public function update(Order $order, array $dataForUpdate): Order
     {
-        $order = $this->model->find($orderId);
-
         if (
             array_key_exists('status', $dataForUpdate)
             && !$order->status->getChangePermission($dataForUpdate['status'])
         ) {
-            throw new OrderChangeStatusException($orderId, $order->status, $dataForUpdate['status']);
+            throw new OrderChangeStatusException($order->id, $order->status, $dataForUpdate['status']);
         }
 
         $order->update($dataForUpdate);

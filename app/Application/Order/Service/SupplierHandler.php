@@ -2,6 +2,7 @@
 
 namespace App\Application\Order\Service;
 
+use App\Domain\Order\Repository\OrderItemRepositoryInterface;
 use App\Domain\Shared\LoggerInterface;
 use App\Domain\Supplier\DTO\SupplierClientRequestDTO;
 use App\Domain\Supplier\DTO\SupplierClientResponseDTO;
@@ -13,41 +14,68 @@ use Illuminate\Http\Client\ConnectionException;
 class SupplierHandler
 {   
     protected const int MAX_TRY = 3;
+    protected const int MAX_TRY_FOR_CODE_ERROR = 3;
     protected const int BACKOFF_TIME = 500;
 
     public function __construct(
         protected SupplierInterface $supplierA,
         protected SupplierInterface $supplierB,
         protected LoggerInterface $logger,
+        protected OrderItemRepositoryInterface $orderItemRepository,
     ) {}    
 
     public function getResponse(string $sku, string $orderItemPublicId): SupplierClientResponseDTO
     {
-        $request = new SupplierClientRequestDTO(
-            requestId: "request_{$orderItemPublicId}_supplier_A",
-            sku: $sku,
-            orderItemPublicId: $orderItemPublicId,
-        );
+        $suppliers = [
+            $this->supplierA,
+            $this->supplierB,
+        ];
 
-        $response = $this->makeRequest($this->supplierA, $request);
+        $supplierLastKey = array_key_last($suppliers);
 
-        if (
-            $response->status == SupplierStatus::Ok->value
-            || $response->reason == SupplierReason::AllTimeouts->value
-        ) {
-            $this->logSupplierResponse($request, $response, 'A');
-            return $response;
+        foreach ($suppliers as $key => $currentSupplier) {
+            for ($try = 1; $try <= self::MAX_TRY_FOR_CODE_ERROR; $try++) {
+                $request = new SupplierClientRequestDTO(
+                    requestId: "request_{$orderItemPublicId}_supplier_{$currentSupplier->name}_time_{$try}",
+                    sku: $sku,
+                    orderItemPublicId: $orderItemPublicId,
+                );
+
+                $response = $this->makeRequest($currentSupplier, $request);
+
+                if ($response->reason == SupplierReason::AllTimeouts->value) {
+                    $this->logSupplierResponse($request, $response, $currentSupplier->name, false);
+                    return $response;
+                }                
+
+                if ($response->status == SupplierStatus::Ok->value) {
+                    $item = $this->orderItemRepository->getByCode($response->code);
+
+                    if (!$item || $item->public_id == $orderItemPublicId) {
+                        $this->logSupplierResponse($request, $response, $currentSupplier->name, true);
+                        return $response;                
+                    }
+
+                    $this->logger->warning("Duplicate code from supplier", [
+                        'supplier' => $currentSupplier->name,
+                        'request_id' => $request->requestId,
+                        'code' => $response->code,
+                    ]);
+                }
+            }      
+            
+            $this->logSupplierResponse($request, $response, $currentSupplier->name, false);   
+            
+            if ($key !=  $supplierLastKey) {
+                $this->logger->info(
+                    "Supplier {$currentSupplier->name}  fail. Supplier {$suppliers[$key + 1]->name} start", 
+                    [
+                        'order_public_id' => $orderItemPublicId,
+                        'provider_a_reason' => $response->reason,
+                    ],
+                );     
+            }            
         }
-
-        $this->logger->info('Supplier A fail. Supplier B start', [
-            'order_public_id' => $orderItemPublicId,
-            'provider_a_reason' => $response->reason,
-        ]);
-
-        $request->requestId = "request_{$orderItemPublicId}_supplier_B";
-        $response = $this->makeRequest($this->supplierB, $request);
-
-        $this->logSupplierResponse($request, $response, 'B');
 
         return $response;
     }
@@ -77,8 +105,9 @@ class SupplierHandler
 
     protected function logSupplierResponse(
         SupplierClientRequestDTO $request,
-        SupplierClientResponseDTO $response, 
+        SupplierClientResponseDTO $response,
         string $supplier,
+        bool $success = true,
     ): void
     {
         $logData = [
@@ -86,7 +115,19 @@ class SupplierHandler
             'request_id' => $request->requestId,
             'supplier' => $supplier,
         ];
-        
+
+        if ($response->status == SupplierStatus::Ok->value && $success) {
+            $logData['code'] = $response->code;
+            $this->logger->info("Supplier {$supplier} success", $logData);
+            return;
+        }
+
+        if ($response->status == SupplierStatus::Ok->value && !$success) {
+            $logData['code'] = $response->code;
+            $this->logger->warning("Supplier {$supplier} warning", $logData);
+            return;
+        }
+
         $logData['reason'] = $response->reason;
         $this->logger->error("All suppliers failed", $logData);
     }

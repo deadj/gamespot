@@ -30,13 +30,13 @@ class DeliverOrderUseCase
         $orderOldStatus = $order->status;
 
         if ($order->status == OrderStatus::Created && $paymentStatus == PaymentStatus::Paid) {
-            $order = $this->orderRepository->updateStatus($order->id, OrderStatus::Paid);
+            $order = $this->orderRepository->updateStatus($order, OrderStatus::Paid);
             $this->logStatusUpdate($order->public_id, $orderOldStatus, OrderStatus::Paid);
             $orderOldStatus = $order->status;
         } 
 
         if ($order->status != OrderStatus::Delivering) {
-            $order = $this->orderRepository->updateStatus($order->id, OrderStatus::Delivering);
+            $order = $this->orderRepository->updateStatus($order, OrderStatus::Delivering);
             $this->logStatusUpdate($order->public_id, $orderOldStatus, OrderStatus::Delivering);
         }
 
@@ -73,7 +73,7 @@ class DeliverOrderUseCase
             $resultOrderStatus = OrderStatus::DeliveryFailed;
         }
 
-        $order = $this->orderRepository->updateStatus($order->id, $resultOrderStatus);
+        $order = $this->orderRepository->updateStatus($order, $resultOrderStatus);
         $this->logStatusUpdate($order->public_id, OrderStatus::Delivering, $resultOrderStatus);
 
         return $order;

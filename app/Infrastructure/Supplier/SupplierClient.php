@@ -14,6 +14,7 @@ use Override;
 class SupplierClient implements SupplierInterface
 {
     public function __construct(
+        readonly public string $name,
         protected KeyRepositoryInterface $keyRepository,
         protected int $errorPercent = 0,
         protected int $timeoutPercent = 0,

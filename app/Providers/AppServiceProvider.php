@@ -41,19 +41,23 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(SupplierHandler::class, function ($app) {
             $keyRepository = $app->make(KeyRepositoryInterface::class);
+            $orderItemsRepository = $app->make(OrderItemRepositoryInterface::class);
  
             return new SupplierHandler(
                 supplierA: new SupplierClient(
-                    $keyRepository,
+                    name: 'A',
+                    keyRepository: $keyRepository,
                     errorPercent: config('services.suppliers.a.error_percent'),
                     timeoutPercent: config('services.suppliers.a.timeout_percent'),
                 ),
                 supplierB: new SupplierClient(
-                    $keyRepository,
+                    name: 'B',
+                    keyRepository: $keyRepository,
                     errorPercent: config('services.suppliers.b.error_percent'),
                     timeoutPercent: config('services.suppliers.b.timeout_percent'),
                 ),
                 logger: $app->make(LoggerInterface::class),
+                orderItemRepository: $orderItemsRepository,
             );
         });        
     }

@@ -23,6 +23,7 @@ class OrderItem extends Model
         'amount',
         'currency',
         'code',
+        'request_id',
     ];
 
     protected $casts = [

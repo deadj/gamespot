@@ -22,7 +22,7 @@ class OrderPaymentRaceTest extends TestCase
         
         $this->checkTestDB();
 
-        DB::statement('TRUNCATE TABLE payment_logs, payments, orders RESTART IDENTITY CASCADE;');
+        DB::statement('TRUNCATE TABLE payment_logs, payments, orders, order_items, money_moves RESTART IDENTITY CASCADE;');
         Key::query()->update(['request_id' => null]);
     }    
 
@@ -39,17 +39,19 @@ class OrderPaymentRaceTest extends TestCase
         $testUrl = "http://127.0.0.1:8001";
 
         $product = Product::first();        
-        $orderCreatingResponse = Http::post($testUrl . '/api/orders',  ['sku' => $product->sku]);
+        $orderCreatingResponse = Http::post($testUrl . '/api/orders',  ['skus' => [$product->sku]]);
         $this->assertTrue($orderCreatingResponse->successful());
         $orderCreatingData = $orderCreatingResponse->json()['data'];
+        $item = $orderCreatingData['order_items'][0];
         $publicOrderId = $orderCreatingData['order_id'];
+        $publicItemId = $item['public_id'];
 
         $paymentWebhookRequestData = [
             'event_id' => 'event_test_12345',
             'order_id' => $publicOrderId,
             'status' => PaymentStatus::Paid->value,
-            'amount' => $orderCreatingData['amount'],
-            'currency' => $orderCreatingData['currency'],
+            'amount' => $item['amount'],
+            'currency' => $item['currency'],
             'created_at' => now()->format('Y-m-d H:i:s'),
         ];
         
@@ -72,7 +74,7 @@ class OrderPaymentRaceTest extends TestCase
         
         $this->assertEquals(OrderStatus::Delivered, $order->status);
         $this->assertEquals(1, Order::count());
-        $this->assertEquals(1, Key::where('request_id', 'LIKE', "request_{$publicOrderId}_supplier_%")->count());
+        $this->assertEquals(1, Key::where('request_id', 'LIKE', "request_{$publicItemId}_supplier_%")->count());
         $this->assertEquals(1, Payment::where('order_public_id', $publicOrderId)->count());
     }
 }

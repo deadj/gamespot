@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Collection;
 
 interface OrderRepositoryInterface extends CreateInterface
 {
-    public function updateStatus(int $orderId, OrderStatus $status): Order;
-    public function update(int $orderId, array $dataForUpdate): Order;
+    public function updateStatus(Order $order, OrderStatus $status): Order;
+    public function update(Order $order, array $dataForUpdate): Order;
     public function getStrangeOrders(): Collection;
     public function getByStatuses(array $statuses): Collection;
     public function getById(int $orderId): ?Order;
