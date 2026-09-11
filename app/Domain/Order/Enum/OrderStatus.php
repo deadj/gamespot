@@ -19,6 +19,15 @@ enum OrderStatus: string
         return in_array($neededStatus, $this->getAllowedChanges());
     }
 
+    public static function getNotFinishedStatusesForItem(): array
+    {
+        return [
+            self::Created,
+            self::Paid,
+            self::Delivering,
+        ];
+    }
+
     private function getAllowedChanges(): array
     {
         return match ($this) {

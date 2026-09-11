@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Order\UseCase\GetOrdersDeliveryStatisticsUseCase;
 use App\Application\Order\UseCase\GetOrderUseCase;
 use App\Application\Order\UseCase\GetStrangeOrdersUseCase;
 use App\Application\Order\UseCase\OrderCreateUseCase;
@@ -10,6 +11,7 @@ use App\Domain\Product\Exception\AllProductsNotFoundException;
 use App\Domain\Product\Exception\ProductNotFoundException;
 use App\Http\Requests\OrderCreateRequest;
 use App\Http\Resources\OrderResource;
+use App\Http\Resources\OrdersDeliveryStatisticsResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -49,5 +51,13 @@ class OrderController extends Controller
     {
         $orders = $useCase->execute();
         return OrderResource::collection($orders);
+    }
+
+    public function showOrderQueue(
+        GetOrdersDeliveryStatisticsUseCase $useCase,
+    ): OrdersDeliveryStatisticsResource
+    {
+        $statistics = $useCase->execute();
+        return new OrdersDeliveryStatisticsResource($statistics);
     }
 }

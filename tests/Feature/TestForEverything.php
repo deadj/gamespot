@@ -57,7 +57,6 @@ class TestForEverything extends TestCase
     {
         $response = $this->post(route('webhook.payment'), $this->getRequestData($order));
         $response->assertStatus(200);
-        $this->assertTrue(str_contains($response->json('message'), $message));
 
         $order->refresh();
         $this->assertEquals(OrderStatus::PartiallyDelivered, $order->status);

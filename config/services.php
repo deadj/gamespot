@@ -36,6 +36,7 @@ return [
     ],
 
     'suppliers' => [
+        'limite_per_minute' => env('SUPPLIER_RATE_LIMIT_PER_MINUTE', 10),
         'a' => [
             'error_percent' => env('SUPPLIER_A_ERROR_PERCENT', 0),
             'timeout_percent' => env('SUPPLIER_A_TIMEOUT_PERCENT', 0),            

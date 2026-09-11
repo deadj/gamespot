@@ -14,6 +14,7 @@ Route::prefix('products')->name('products')->group(function () {
 
 Route::prefix('orders')->name('orders')->group(function () {
     Route::get('strange', [OrderController::class, 'showStrangeOrders'])->name('.show.strange');
+    Route::get('queue', [OrderController::class, 'showOrderQueue'])->name('.show.queue');
     Route::get('{id}', [OrderController::class, 'show'])->name('.show');
     Route::post('', [OrderController::class, 'store'])->name('.store');
 });

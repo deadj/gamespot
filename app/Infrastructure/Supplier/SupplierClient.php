@@ -9,6 +9,7 @@ use App\Domain\Supplier\Enum\SupplierReason;
 use App\Domain\Supplier\Enum\SupplierStatus;
 use App\Domain\Supplier\Interface\SupplierInterface;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\RateLimiter;
 use Override;
 
 class SupplierClient implements SupplierInterface
@@ -18,11 +19,23 @@ class SupplierClient implements SupplierInterface
         protected KeyRepositoryInterface $keyRepository,
         protected int $errorPercent = 0,
         protected int $timeoutPercent = 0,
+        protected int $limitPerMinute = 10,
     ) {}
 
     #[Override]
     public function getKey(SupplierClientRequestDTO $dto): SupplierClientResponseDTO
     {
+        $rateLimiterKey = "supplier:{$this->name}";
+
+        if (RateLimiter::tooManyAttempts("supplier:{$this->name}", $this->limitPerMinute)) {
+            return new SupplierClientResponseDTO(
+                status: SupplierStatus::Error->value,
+                reason: SupplierReason::RateLimited->value,
+            );
+        }
+
+        RateLimiter::hit($rateLimiterKey, 60);
+
         if ($key = $this->keyRepository->getByRequestId($dto->requestId)) {
             return new SupplierClientResponseDTO(
                 status: SupplierStatus::Ok->value,

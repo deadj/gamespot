@@ -43,7 +43,10 @@ class SupplierHandler
 
                 $response = $this->makeRequest($currentSupplier, $request);
 
-                if ($response->reason == SupplierReason::AllTimeouts->value) {
+                if (in_array($response->reason, [
+                    SupplierReason::AllTimeouts->value,
+                    SupplierReason::RateLimited->value,
+                ])) {
                     $this->logSupplierResponse($request, $response, $currentSupplier->name, false);
                     return $response;
                 }                

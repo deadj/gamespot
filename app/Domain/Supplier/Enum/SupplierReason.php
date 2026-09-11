@@ -8,4 +8,5 @@ enum SupplierReason: string
     case Timeout = 'timeout';
     case AllTimeouts = 'all_timeounts';
     case OutOfStock = 'out_of_stock';
+    case RateLimited = 'rate_limited';
 }
