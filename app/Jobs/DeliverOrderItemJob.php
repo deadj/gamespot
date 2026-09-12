@@ -13,7 +13,7 @@ class DeliverOrderItemJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 1000;
+    public int $tries = 3;
 
     public function __construct(
         protected int $orderId,
@@ -27,6 +27,9 @@ class DeliverOrderItemJob implements ShouldQueue
     ): void
     {
         $response = $deliverOrderItemUseCase->execute($this->orderItemId, $this->paymentStatus);
+
+        if ($response === null)
+            return;
 
         if ($response?->reason == SupplierReason::RateLimited->value) {
             $this->release(60);
