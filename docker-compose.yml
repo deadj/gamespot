@@ -16,6 +16,16 @@ services:
       timeout: 3s
       retries: 5
 
+  redis:
+    image: redis:alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
   app:
     build: .
     ports:
@@ -24,16 +34,35 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       DB_HOST: db
       DB_DATABASE: gamespot
       DB_USERNAME: gamespot
       DB_PASSWORD: secret
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      QUEUE_CONNECTION: redis
     volumes:
       - .:/app
       - /app/vendor
     command: >
-      sh -c "mkdir -p tests/Unit && cp -n .env.example .env && composer install --no-interaction && php artisan key:generate --force && php artisan migrate:fresh --force && php artisan db:seed --class=ProductSeeder --force && php artisan db:seed --class=KeysThousandsSeeder --force && php artisan serve --host=0.0.0.0 --port=8000 & DB_DATABASE=gamespot_test php artisan migrate:fresh --force && DB_DATABASE=gamespot_test php artisan db:seed --class=ProductSeeder --force && DB_DATABASE=gamespot_test php artisan db:seed --class=KeysThousandsSeeder --force && DB_DATABASE=gamespot_test php artisan octane:start --host=0.0.0.0 --port=8001"
+      sh -c "mkdir -p tests/Unit &&
+      cp -n .env.example .env &&
+      php artisan config:clear &&
+      composer install --no-interaction &&
+      php artisan key:generate --force &&
+      php artisan migrate:fresh --force &&
+      php artisan db:seed --class=ProductSeeder --force &&
+      php artisan db:seed --class=KeysThousandsSeeder --force &&
+      php artisan queue:clear redis --queue=high,default --force &&
+      (php artisan serve --host=0.0.0.0 --port=8000 &) &&
+      (php artisan queue:work redis --queue=high,default --tries=3 --sleep=3 &) &&
+      DB_DATABASE=gamespot_test php artisan migrate:fresh --force &&
+      DB_DATABASE=gamespot_test php artisan db:seed --class=ProductSeeder --force &&
+      DB_DATABASE=gamespot_test php artisan db:seed --class=KeysThousandsSeeder --force &&
+      php artisan octane:start --host=0.0.0.0 --port=8001"
 
 volumes:
   db_data:
