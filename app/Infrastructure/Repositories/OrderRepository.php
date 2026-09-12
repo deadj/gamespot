@@ -68,7 +68,11 @@ class OrderRepository extends AbstractRepository implements OrderRepositoryInter
     #[Override]
     public function getById(int $orderId): ?Order
     {
-        return $this->model->with('payment')->find($orderId);   
+        return $this->model->with([
+            'payment',
+            'items', 
+        ])
+        ->find($orderId);   
     }
 
     #[Override]

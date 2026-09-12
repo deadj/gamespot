@@ -6,12 +6,17 @@ use App\Application\Order\UseCase\GetOrdersDeliveryStatisticsUseCase;
 use App\Application\Order\UseCase\GetOrderUseCase;
 use App\Application\Order\UseCase\GetStrangeOrdersUseCase;
 use App\Application\Order\UseCase\OrderCreateUseCase;
+use App\Application\Order\UseCase\OrderHistoryUseCase;
+use App\Domain\Order\DTO\OrderHistoryRequestDTO;
 use App\Domain\Order\Exception\OrderNotFoundException;
 use App\Domain\Product\Exception\AllProductsNotFoundException;
 use App\Domain\Product\Exception\ProductNotFoundException;
 use App\Http\Requests\OrderCreateRequest;
+use App\Http\Requests\OrderHistoryRequest;
+use App\Http\Resources\OrderHistoryResource;
 use App\Http\Resources\OrderResource;
 use App\Http\Resources\OrdersDeliveryStatisticsResource;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -59,5 +64,22 @@ class OrderController extends Controller
     {
         $statistics = $useCase->execute();
         return new OrdersDeliveryStatisticsResource($statistics);
+    }
+
+    public function showHistory(
+        OrderHistoryRequest $request,
+        OrderHistoryUseCase $useCase,
+    ): OrderHistoryResource|JsonResponse
+    {
+        try {
+            $historyData = $useCase->execute(new OrderHistoryRequestDTO(
+                orderId: $request->order_id,
+                dateStart: $request->date_start ? Carbon::parse($request->date_start) : null,
+                dateEnd: $request->date_end ? Carbon::parse($request->date_end) : null,
+            ));
+            return new OrderHistoryResource($historyData);        
+        } catch (OrderNotFoundException $e) {
+            return response()->json($e->getMessage(), 404);
+        }
     }
 }

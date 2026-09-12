@@ -56,15 +56,6 @@ class HandlePaymentWebhookUseCase
                 $this->logger->info('Order already paid', ['order_public_id' => $dto->orderPublicId]);
                 throw new PaymentAlreadyProcessedException("payment {$dto->eventId} already processed");
             }
-            
-            // TODO: не очевидно, что делать в ситуации, когда у продуктов разная валюта
-            // if (
-            //     bccomp((string) $order->amount, (string) $dto->amount, 2) !== 0
-            //     || $order->currency !== $dto->currency
-            // ) {
-            //     $this->logger->error("Payment Amount/currency error", ['event_id' => $dto->eventId]);
-            //     throw new PaymentAmountException('Amount/currency error');
-            // }
 
             if (in_array($order->status, [
                 OrderStatus::Delivered,

@@ -3,16 +3,21 @@
 namespace App\Infrastructure\Models;
 
 use App\Domain\Order\Enum\OrderStatus;
+use App\Infrastructure\Observers\OrderItemObserver;
+use App\Infrastructure\Shared\Trait\MorphClassTrait;
 use Database\Factories\OrderItemFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
+#[ObservedBy([OrderItemObserver::class])]
 class OrderItem extends Model
 {
-    use HasFactory;
+    use HasFactory, MorphClassTrait;
 
     protected $fillable = [
         'order_id',
@@ -40,9 +45,14 @@ class OrderItem extends Model
         return $this->belongsTo(Product::class);
     }
 
-    public function moneyMove(): HasOne
+    public function moneyMoves(): HasMany
     {
-        return $this->hasOne(MoneyMove::class);
+        return $this->hasMany(MoneyMove::class);
+    }
+
+    public function history(): MorphMany
+    {
+        return $this->morphMany(OrderHistory::class, 'target');
     }
 
     protected function orderPublicId(): Attribute

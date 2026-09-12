@@ -40,17 +40,13 @@ class OrderItemRepository extends AbstractRepository implements OrderItemReposit
     #[Override]
     public function getByStatuses(array $statuses): Collection
     {
-        return $this->model
-            // ->with('payment')
-            ->whereIn('status', $statuses)->get();
+        return $this->model->whereIn('status', $statuses)->get();
     }
 
     #[Override]
     public function getById(int $itemId): ?OrderItem
     {
-        return $this->model
-            // ->with('payment')
-            ->find($itemId);   
+        return $this->model->find($itemId);   
     }
 
     #[Override]
@@ -58,7 +54,6 @@ class OrderItemRepository extends AbstractRepository implements OrderItemReposit
     {
         return $this->model
             ->where('id', $itemId)
-            // ->with('payment')
             ->lockForUpdate()
             ->first();
     }

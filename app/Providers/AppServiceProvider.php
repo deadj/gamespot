@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Application\Order\Service\SupplierHandler;
 use App\Domain\Money\Repository\MoneyMoveRepositoryInterface;
+use App\Domain\Order\Repository\OrderHistoryRepositoryInterface;
 use App\Domain\Order\Repository\OrderItemRepositoryInterface;
 use App\Domain\Supplier\Repository\KeyRepositoryInterface;
 use App\Domain\Order\Repository\OrderRepositoryInterface;
@@ -11,8 +12,11 @@ use App\Domain\Payment\Repository\PaymentLogRepositoryInterface;
 use App\Domain\Payment\Repository\PaymentRepositoryInterface;
 use App\Domain\Product\Repository\ProductRepositoryInterface;
 use App\Domain\Shared\LoggerInterface;
+use App\Infrastructure\Models\Order;
+use App\Infrastructure\Models\OrderItem;
 use App\Infrastructure\Repositories\KeyRepository;
 use App\Infrastructure\Repositories\MoneyMoveRepository;
+use App\Infrastructure\Repositories\OrderHistoryRepository;
 use App\Infrastructure\Repositories\OrderItemRepository;
 use App\Infrastructure\Repositories\OrderRepository;
 use App\Infrastructure\Repositories\PaymentLogRepository;
@@ -20,6 +24,7 @@ use App\Infrastructure\Repositories\PaymentRepository;
 use App\Infrastructure\Repositories\ProductRepository;
 use App\Infrastructure\Shared\Logger;
 use App\Infrastructure\Supplier\SupplierClient;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -36,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PaymentRepositoryInterface::class, PaymentRepository::class);
         $this->app->bind(PaymentLogRepositoryInterface::class, PaymentLogRepository::class);
         $this->app->bind(MoneyMoveRepositoryInterface::class, MoneyMoveRepository::class);
+        $this->app->bind(OrderHistoryRepositoryInterface::class, OrderHistoryRepository::class);
 
         $this->app->bind(LoggerInterface::class, Logger::class);
 
@@ -69,6 +75,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Relation::enforceMorphMap([
+            'order' => Order::class,
+            'order_item' => OrderItem::class,
+        ]);
     }
 }
