@@ -19,6 +19,7 @@ class SupplierClient implements SupplierInterface
         protected KeyRepositoryInterface $keyRepository,
         protected int $errorPercent = 0,
         protected int $timeoutPercent = 0,
+        protected int $doubleCodePercent = 0,
         protected int $limitPerMinute = 10,
     ) {}
 
@@ -43,6 +44,16 @@ class SupplierClient implements SupplierInterface
                 code: $key->code,
             );
         }
+
+        if (rand(1, 100) <= $this->doubleCodePercent) {
+            $doubleKey = $this->keyRepository->getBusy();
+            if ($doubleKey)
+                return new SupplierClientResponseDTO(
+                    status: SupplierStatus::Ok->value,
+                    requestId: $dto->requestId,
+                    code: $doubleKey->code,
+                );
+        }         
         
         if (rand(1, 100) <= $this->errorPercent) 
             return new SupplierClientResponseDTO(

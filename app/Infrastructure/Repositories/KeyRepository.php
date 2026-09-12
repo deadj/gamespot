@@ -43,6 +43,12 @@ class KeyRepository extends AbstractRepository implements KeyRepositoryInterface
     }
 
     #[Override]
+    public function getBusy(): ?Key
+    {
+        return $this->model->whereNotNull('request_id')->first();
+    }
+
+    #[Override]
     protected function getModel(): Model
     {
         return new Key();

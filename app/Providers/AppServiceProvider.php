@@ -55,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
                     keyRepository: $keyRepository,
                     errorPercent: config('services.suppliers.a.error_percent'),
                     timeoutPercent: config('services.suppliers.a.timeout_percent'),
+                    doubleCodePercent: config('services.suppliers.double_code_percent'),
                     limitPerMinute: config('services.suppliers.limite_per_minute'),
                 ),
                 supplierB: new SupplierClient(
@@ -62,6 +63,7 @@ class AppServiceProvider extends ServiceProvider
                     keyRepository: $keyRepository,
                     errorPercent: config('services.suppliers.b.error_percent'),
                     timeoutPercent: config('services.suppliers.b.timeout_percent'),
+                    doubleCodePercent: config('services.suppliers.double_code_percent'),
                     limitPerMinute: config('services.suppliers.limite_per_minute'),
                 ),
                 logger: $app->make(LoggerInterface::class),
